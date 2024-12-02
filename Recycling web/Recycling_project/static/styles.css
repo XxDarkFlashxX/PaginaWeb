@@ -1,0 +1,52 @@
+/* Asegura que el cuerpo de la página tenga el fondo correcto y margen adecuado */
+body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7f6;  /* Color más suave de fondo */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Estilo para la barra de navegación */
+.navbar {
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    background: linear-gradient(45deg, #28a745, #007bff);
+    color: white;
+    padding: 10px 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);  /* Sombra más prominente para darle más presencia */
+}
+
+/* Estilo para el título de la barra */
+.navbar .navbar-brand {
+    color: white;
+    font-weight: bold;
+    font-size: 26px;
+}
+
+/* Estilos de los enlaces en la barra de navegación */
+.navbar .navbar-nav .nav-link {
+    color: white !important;
+    font-size: 18px;
+    margin-left: 20px;
+}
+
+.navbar .navbar-nav .nav-link:hover {
+    text-decoration: underline;
+}
+
+/* Ajustes para el contenedor principal */
+.container {
+    margin-top: 110px;  /* Ajuste para dejar más espacio debajo de la barra de navegación */
+    padding: 20px;
+}
+
+/* Estilo para botones deshabilitados */
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}

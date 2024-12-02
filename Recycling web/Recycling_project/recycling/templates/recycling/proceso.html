@@ -1,0 +1,18 @@
+{% extends 'recycling/base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Proceso de Reciclaje de Electrodomésticos</h2>
+<ol>
+    <li><strong>Recepción de los equipos:</strong> Retiro y almacenamiento en la planta.</li>
+    <li><strong>Pesaje:</strong> Se pesa para registrar su cantidad.</li>
+    <li><strong>Clasificación por tipo de aparato:</strong> Determina si se recicla o restaura.</li>
+    <li><strong>Almacenamiento:</strong> Equipos almacenados según su clasificación.</li>
+    <li><strong>Desmantelamiento:</strong> Separación de componentes y materiales reutilizables.</li>
+</ol>
+
+<!-- Imagen ilustrativa -->
+<div class="text-center">
+    <img src="{% static 'img/proceso_reciclaje.jpg' %}" alt="Proceso de reciclaje" class="img-fluid">
+</div>
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends 'recycling/base.html' %}
+
+{% block content %}
+<div id="map-container" style="position: relative; height: calc(100vh - 120px); width: 100%; margin-top: 20px;">
+    <div id="map" style="height: 100%; width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);"></div>
+
+    <!-- Contenedor de botones en la parte superior izquierda -->
+    <div id="controls-left" style="position: absolute; top: 10px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px;">
+        <button id="locate-btn" class="btn btn-primary">Mi Ubicación</button>
+        <div style="display: flex; gap: 5px;">
+            <button id="zoom-in-btn" class="btn btn-secondary">+</button>
+            <button id="zoom-out-btn" class="btn btn-secondary">-</button>
+        </div>
+        <button id="3d-btn" class="btn btn-success">Vista 3D</button>
+    </div>
+
+    <!-- Recuadro de información de lugar -->
+    <div id="place-info-box" style="display: none; position: absolute; top: 20px; right: 20px; z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); max-width: 300px;">
+        <h5>Información del Lugar</h5>
+        <p id="place-info-text"></p>
+        <button id="cancel-info-btn" class="btn btn-warning" style="margin-top: 10px;">Cancelar</button>
+    </div>
+
+    <!-- Recuadro de indicaciones -->
+    <div id="directions-box" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: #ffffff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); max-width: 400px; max-height: 40%; overflow-y: auto;">
+        <h5>Indicaciones de Ruta</h5>
+        <div id="directions-content"></div>
+        <button id="more-btn" class="btn btn-info" style="display: none; margin-top: 10px;">Más...</button>
+    </div>
+
+    <!-- Botón de inicio/cancelar -->
+    <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+        <button id="start-btn" class="btn btn-danger" disabled>Iniciar</button>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+    var map = L.map('map', { zoomControl: false }).setView([0, 0], 15);
+    var userMarker, destinationMarker, routingControl;
+    var isRouting = false;
+    var is3D = false;
+
+    var baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 20,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+
+    function locateUserOnLoad() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                function (position) {
+                    var lat = position.coords.latitude;
+                    var lon = position.coords.longitude;
+
+                    if (!userMarker) {
+                        userMarker = L.marker([lat, lon], { title: "Tu Ubicación" }).addTo(map);
+                        map.setView([lat, lon], 19);
+                    } else {
+                        userMarker.setLatLng([lat, lon]);
+                    }
+                },
+                function () {
+                    alert("No se pudo obtener tu ubicación.");
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+            );
+        } else {
+            alert("La geolocalización no es compatible con tu navegador.");
+        }
+    }
+
+    locateUserOnLoad();
+
+    document.getElementById('locate-btn').addEventListener('click', locateUserOnLoad);
+
+    document.getElementById('zoom-in-btn').addEventListener('click', function () {
+        map.zoomIn();
+    });
+
+    document.getElementById('zoom-out-btn').addEventListener('click', function () {
+        map.zoomOut();
+    });
+
+    document.getElementById('3d-btn').addEventListener('click', function () {
+        if (!is3D) {
+            map.removeLayer(baseLayer);
+            map.addLayer(satelliteLayer);
+            this.textContent = "Vista 2D";
+            is3D = true;
+        } else {
+            map.removeLayer(satelliteLayer);
+            map.addLayer(baseLayer);
+            this.textContent = "Vista 3D";
+            is3D = false;
+        }
+    });
+
+    map.on('click', function (e) {
+        if (isRouting) return;
+
+        var lat = e.latlng.lat.toFixed(5);
+        var lon = e.latlng.lng.toFixed(5);
+
+        if (destinationMarker) {
+            destinationMarker.setLatLng([lat, lon]);
+        } else {
+            destinationMarker = L.marker([lat, lon], { title: "Destino" }).addTo(map);
+        }
+
+        document.getElementById('place-info-box').style.display = 'block';
+        document.getElementById('start-btn').disabled = false;
+        updatePlaceInfo(lat, lon);
+    });
+
+    function updatePlaceInfo(lat, lon) {
+        var geocoder = L.Control.Geocoder.nominatim();
+        geocoder.reverse(L.latLng(lat, lon), map.getZoom(), function (results) {
+            if (results.length > 0) {
+                const address = results[0].properties.display_name || "Información no disponible";
+                document.getElementById('place-info-text').textContent = address;
+            } else {
+                document.getElementById('place-info-text').textContent = "No se pudo obtener la información.";
+            }
+        });
+    }
+
+    document.getElementById('cancel-info-btn').addEventListener('click', function () {
+        if (destinationMarker) {
+            map.removeLayer(destinationMarker);
+            destinationMarker = null;
+        }
+
+        document.getElementById('place-info-box').style.display = 'none';
+        document.getElementById('start-btn').disabled = true;
+    });
+
+    document.getElementById('start-btn').addEventListener('click', function () {
+        if (isRouting) {
+            cancelRouting();
+        } else if (userMarker && destinationMarker) {
+            startRouting();
+        }
+    });
+
+    function startRouting() {
+        isRouting = true;
+        document.getElementById('start-btn').textContent = "Cancelar";
+
+        // Ocultar información del lugar al iniciar
+        document.getElementById('place-info-box').style.display = 'none';
+
+        routingControl = L.Routing.control({
+            waypoints: [userMarker.getLatLng(), destinationMarker.getLatLng()],
+            createMarker: () => null,
+            routeWhileDragging: true,
+            language: 'es',
+            lineOptions: { styles: [{ color: 'blue', weight: 5 }] }
+        }).addTo(map);
+
+        routingControl.on('routesfound', function (e) {
+            const instructions = e.routes[0].instructions;
+            updateDirections(instructions);
+        });
+
+        document.getElementById('directions-box').style.display = 'block';
+    }
+
+    function cancelRouting() {
+        isRouting = false;
+        document.getElementById('start-btn').textContent = "Iniciar";
+
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+        }
+
+        document.getElementById('directions-box').style.display = 'none';
+        document.getElementById('directions-content').innerHTML = '';
+    }
+
+    function updateDirections(instructions) {
+        const directionsBox = document.getElementById('directions-content');
+        directionsBox.innerHTML = '';
+
+        const limitedInstructions = instructions.slice(0, 3);
+        limitedInstructions.forEach((step, index) => {
+            const stepElem = document.createElement('p');
+            stepElem.textContent = `${index + 1}. ${step.text}`;
+            directionsBox.appendChild(stepElem);
+        });
+
+        const moreBtn = document.getElementById('more-btn');
+        if (instructions.length > 3) {
+            moreBtn.style.display = 'block';
+            moreBtn.onclick = () => showMoreSteps(instructions);
+        } else {
+            moreBtn.style.display = 'none';
+        }
+    }
+
+    function showMoreSteps(instructions) {
+        const directionsBox = document.getElementById('directions-content');
+        directionsBox.innerHTML = '';
+
+        instructions.forEach((step, index) => {
+            const stepElem = document.createElement('p');
+            stepElem.textContent = `${index + 1}. ${step.text}`;
+            directionsBox.appendChild(stepElem);
+        });
+
+        document.getElementById('more-btn').style.display = 'none';
+    }
+</script>
+{% endblock %}
